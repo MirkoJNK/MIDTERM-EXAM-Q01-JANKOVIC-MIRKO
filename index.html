@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Campus Visitor Log System</title>
+ <style>
+        body { font-family: Arial; margin: 20px; }
+        input, button { padding: 7px; margin: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        th { background: lightgray; }
+ </style>
+</head>
+<body>
+
+<h1>Campus Visitor Log System</h1>
+
+
+
+<h2>Add New Visitor</h2>
+<form id="visitorForm">
+    <input id="visitor_name" placeholder="Visitor Name" required>
+    <input id="purpose" placeholder="Purpose" required>
+    <input id="person_to_visit" placeholder="Person to Visit" required>
+    <input type="date" id="date" required>
+    <button type="submit">Add Visitor</button>
+</form>
+
+<h2>Search Visitor</h2>
+<input type="text" id="searchId" placeholder="Enter ID">
+<button id="searchBtn">Search</button>
+
+<h2>Delete Visitor</h2>
+<input type="text" id="deleteId" placeholder="Enter ID">
+<button id="deleteBtn">Delete</button>
+
+
+<h2>Visitor Records</h2>
+<button id="showAllBtn">Show All Visitors</button>
+<p id="message"></p>
+
+
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Visitor Name</th>
+            <th>Purpose</th>
+            <th>Person to Visit</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody id="visitorList"></tbody>
+</table>
+
+
+
+
+<script>
+const form = document.getElementById("visitorForm");
+const list = document.getElementById("visitorList");
+const message = document.getElementById("message");
+
+function showMessage(text, error = false) {
+    message.textContent = text;
+    message.style.color = error ? "red" : "green";
+}
+
+async function request(url, options) {
+    const response = await fetch(url, options);
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || "Request failed");
+    }
+
+    return data;
+}
+
+
+function displayVisitors(visitors) {
+    list.innerHTML = "";
+
+    if (visitors.length === 0) {
+        const row = list.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 6;
+        cell.textContent = "No visitors found";
+        return;
+    }
+
+    visitors.forEach(visitor => {
+        const row = list.insertRow();
+
+        [
+            visitor.id,
+            visitor.visitor_name,
+            visitor.purpose,
+            visitor.person_to_visit,
+            visitor.date,
+            visitor.status
+        ].forEach(value => {
+            row.insertCell().textContent = value;
+        });
+    });
+}
+
+
+async function showAll() {
+    try {
+        const visitors = await request("/api/visitors");
+        displayVisitors(visitors);
+        showMessage("Visitors loaded");
+    } catch (error) {
+        showMessage(error.message, true);
+    }
+}
+
+form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const visitor = {
+        visitor_name: document.getElementById("visitor_name").value,
+        purpose: document.getElementById("purpose").value,
+        person_to_visit: document.getElementById("person_to_visit").value,
+        date: document.getElementById("date").value
+    };
+
+    try {
+        await request("/api/visitors", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(visitor)
+        });
+
+
+        form.reset();
+        await showAll();
+        showMessage("Visitor added successfully");
+    } catch (error) {
+        showMessage(error.message, true);
+    }
+});
+
+
+document.getElementById("searchBtn").onclick = async () => {
+    const id = document.getElementById("searchId").value;
+
+    if (!id) {
+        showMessage("Enter an ID", true);
+        return;
+    }
+
+    try {
+        const visitor = await request("/api/visitors/" + id);
+        displayVisitors([visitor]);
+        showMessage("Visitor found");
+    } catch (error) {
+        displayVisitors([]);
+        showMessage(error.message, true);
+    }
+
+};
+
+document.getElementById("deleteBtn").onclick = async () => {
+    const id = document.getElementById("deleteId").value;
+
+    if (!id) {
+        showMessage("Enter an ID", true);
+        return;
+    }
+
+    try {
+        await request("/api/visitors/" + id, {
+            method: "DELETE"
+        });
+
+        document.getElementById("deleteId").value = "";
+        await showAll();
+        showMessage("Visitor deleted successfully");
+    } catch (error) {
+        showMessage(error.message, true);
+    }
+};
+
+document.getElementById("showAllBtn").onclick = showAll;
+
+showAll();
+</script>
+
+</body>
+</html>
